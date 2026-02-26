@@ -1,0 +1,33 @@
+name: Issue Commenter Bot
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment on issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.payload.issue.number;
+            const labels = context.payload.issue.labels.map(label => label.name);
+            const repoOwner = owner;
+            let comment = null;
+
+            if (labels.includes('bug')) {
+              comment = `Thank you. We will fix it. Best regards, ${repoOwner}.`;
+            } else if (labels.includes('feature')) {
+              comment = `Thank you, we will consider to include this feature. Best regards, ${repoOwner}.`;
+            } else if (labels.includes('discussion')) {
+              comment = `Happy to discuss this topic with you. Best regards, ${repoOwner}.`;
+            }
+
+            if (comment) {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: comment });
+            }
