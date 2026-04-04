@@ -1,0 +1,83 @@
+name: Automated Comment Bot
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  add-comment:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Check if issue has labels
+        id: check_labels
+        run: |
+          if [ -n "${{ github.event.issue.labels }}" ]; then
+            echo "has_labels=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_labels=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Get issue labels
+        id: get_labels
+        run: |
+          LABELS="${{ github.event.issue.labels.*.name }}"
+          echo "labels=$LABELS" >> $GITHUB_OUTPUT
+          
+      - name: Check for bug label
+        id: check_bug
+        run: |
+          if echo "${{ steps.get_labels.outputs.labels }}" | grep -q "bug"; then
+            echo "has_bug=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_bug=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Check for feature label
+        id: check_feature
+        run: |
+          if echo "${{ steps.get_labels.outputs.labels }}" | grep -q "feature"; then
+            echo "has_feature=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_feature=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Check for discussion label
+        id: check_discussion
+        run: |
+          if echo "${{ steps.get_labels.outputs.labels }}" | grep -q "discussion"; then
+            echo "has_discussion=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_discussion=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Add comment based on label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.issue.number;
+            const ownerName = owner;
+            
+            let comment = "";
+            
+            if ("${{ steps.check_bug.outputs.has_bug }}" === "true") {
+              comment = `Thank you. We will fix it. Best regards, ${ownerName}.`;
+            } else if ("${{ steps.check_feature.outputs.has_feature }}" === "true") {
+              comment = `Thank you, we will consider to include this feature. Best regards, ${ownerName}.`;
+            } else if ("${{ steps.check_discussion.outputs.has_discussion }}" === "true") {
+              comment = `Happy to discuss this topic with you. Best regards, ${ownerName}.`;
+            } else if ("${{ steps.check_labels.outputs.has_labels }}" === "false") {
+              comment = "Hello, world!";
+            }
+            
+            if (comment) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: comment
+              });
+            }
